@@ -1,10 +1,5 @@
 <?php
-/****
 
-TODO
-Gerer ext_tables.php au moins basiquement
-
-****/
 namespace Ameos\AmeosKickstart;
 
 use Ameos\AmeosKickstart\Help;
