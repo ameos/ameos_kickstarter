@@ -1,7 +1,9 @@
 #!/usr/bin/php
 <?php
 
-$extensionsPath = str_replace('ameos_kickstarter/Resources/Private/Scripts', '', $_SERVER['PWD']);
+$scriptPath = realpath($_SERVER['PWD'] . '/' . $_SERVER['PHP_SELF']);
+$extensionsPath = '/' . trim(str_replace('ameos_kickstarter/Resources/Private/Scripts', '', dirname($scriptPath)) , '/') . '/';
+
 define("EXTENSIONS_PATH", $extensionsPath);
 define("LF",              "\n");
 define("TAB",             "  ");
@@ -9,14 +11,14 @@ define("PHPTAB",          "\t");
 
 require_once($extensionsPath . 'ameos_kickstarter/Classes/Help.php');
 require_once($extensionsPath . 'ameos_kickstarter/Classes/CreateModel.php');
-require_once($extensionsPath . 'ameos_kickstarter/Classes/CreateFullModel.php');
+require_once($extensionsPath . 'ameos_kickstarter/Classes/CreateRecord.php');
 require_once($extensionsPath . 'ameos_kickstarter/Classes/CreateController.php');
 require_once($extensionsPath . 'ameos_kickstarter/Classes/CreateExtension.php');
 require_once($extensionsPath . 'ameos_kickstarter/Classes/Utility.php');
 
 use Ameos\AmeosKickstart\Help;
 use Ameos\AmeosKickstart\CreateModel;
-use Ameos\AmeosKickstart\CreateFullModel;
+use Ameos\AmeosKickstart\CreateRecord;
 use Ameos\AmeosKickstart\CreateController;
 use Ameos\AmeosKickstart\TestPierre;
 use Ameos\AmeosKickstart\CreateExtension;
@@ -34,14 +36,14 @@ switch($action) {
 		$createModel->execute();
 		break;
 
-	case '-createfullmodel':
-		$createFullModel = new CreateFullModel($argv);
-		$createFullModel->execute();
+	case '-createrecord':
+		$createRecord = new CreateRecord($argv);
+		$createRecord->execute();
 		break;
 		
 	case '-createcontroller':
-		$createModel = new CreateController($argv);
-		$createModel->execute();
+		$createCreateController = new CreateController($argv);
+		$createCreateController->execute();
 		break;
 
 	case '-createextension':

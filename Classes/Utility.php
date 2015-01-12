@@ -11,7 +11,7 @@ class Utility {
      */
 	public static function camelCase($string) {
 		$output = '';
-		foreach( explode('_', $string) as $part) {
+		foreach(explode('_', $string) as $part) {
 			$output.= ucfirst($part);
 		}
 		return $output;

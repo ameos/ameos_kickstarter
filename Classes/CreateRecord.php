@@ -10,7 +10,7 @@ namespace Ameos\AmeosKickstart;
 use Ameos\AmeosKickstart\Help;
 use Ameos\AmeosKickstart\Utility;
 
-class CreateFullModel {
+class CreateRecord {
 
 	protected $extensionKey;
 	protected $model;
@@ -57,7 +57,7 @@ class CreateFullModel {
 			} else {
 				$fieldtype = '';
 				do  {
-					echo 'Type of the ' . $index . ' : ';
+					echo 'Type of the ' . $index . ' (string / int / foreignkey) : ';
 					$fieldtype = fgets($fileResource, 1024);
 					$fieldtype = trim($fieldtype);
 
@@ -73,12 +73,32 @@ class CreateFullModel {
 						$tcaType = fgets($fileResource, 1024);
 						$fields[$fieldname]['tca'] = trim($tcaType);
 						break;
+						
 					case 'int':
 						echo 'Tca type of the "' . $fieldname . '" field (input / select / radio / date / datetime / boolean ) '. LF;
 						echo 'If select or radio, only base will be set. : '. LF;
 						$tcaType = fgets($fileResource, 1024);
 						$fields[$fieldname]['tca'] = trim($tcaType);
 						break;
+						
+					case 'foreignkey':
+						echo 'Tca type of the "' . $fieldname . '" field (select / group ) : ';
+						$tcaType = fgets($fileResource, 1024);
+						$fields[$fieldname]['tca'] = trim($tcaType);
+
+						echo 'Is multiple relation (yes/no) : ';
+						$isMultiple = fgets($fileResource, 1024);
+						$fields[$fieldname]['is_multiple'] = (strtolower(trim($isMultiple)) == 'yes' ? TRUE : FALSE);
+
+						echo 'Foreign table (e.g. tx_myextension_domain_model_record): ';
+						$foreignTable = fgets($fileResource, 1024);
+						$fields[$fieldname]['foreign_table'] = trim($foreignTable);
+
+						echo 'Associated model (e.g. \Vendor\MyExtension\Domain\Model\Record ) : ';
+						$associatedModel = fgets($fileResource, 1024);
+						$fields[$fieldname]['associated_model'] = trim($associatedModel);
+						break;
+						
 					default:
 						break;
 				}
@@ -96,13 +116,13 @@ class CreateFullModel {
 		
 		echo LF .'Scritp finished.' . LF;
 
-		if($this->errors != ''){
+		if($this->errors != '') {
 			echo LF .'--------------------' . LF . LF;
 			echo 'Some errors occured : ' . LF . LF;
 			echo $this->errors;
 			echo LF . LF .'--------------------' . LF . LF;
 		}
-		if($this->warning != ''){
+		if($this->warning != '') {
 			echo LF .'--------------------' . LF . LF;
 			echo 'You should verify these info : ' . LF . LF;
 			echo $this->warning;
@@ -112,20 +132,23 @@ class CreateFullModel {
 		die();
 	}
 
-	private function createTca($fields){
+	/**
+	 * create tca configuration
+	 * @param array $fields fields informations
+	 */
+	private function createTca($fields) {
 		$extensionPath = EXTENSIONS_PATH . $this->extensionKey . '/';
 		
 		
 		$tcaDirectoryPath = $extensionPath . 'Configuration/Tca/';
 		if(!file_exists($tcaDirectoryPath)) { mkdir($tcaDirectoryPath, 0770, TRUE); }
 		
-		$tcaFilepath = $tcaDirectoryPath . $this->model . '.php';
+		$tcaFilepath = $tcaDirectoryPath . Utility::camelCase($this->model) . '.php';
 		$sqlFilepath = $extensionPath . 'ext_tables.sql';
 		$extTablesFilepath = $extensionPath . 'ext_tables.php';
 
-		$sqlTableName = 'tx_'.str_replace('_', '', $this->extensionKey).'_domain_model_'.strtolower($this->model);
+		$sqlTableName = 'tx_' . str_replace('_', '', $this->extensionKey) . '_domain_model_' . strtolower($this->model);
 
-		
 		$tcaPhpCode = '';
 		$sqlFields = '';
 
@@ -137,14 +160,14 @@ class CreateFullModel {
     	$tcaPhpCode .= PHPTAB . '\'feInterface\' => $TCA[\''.$sqlTableName.'\'][\'feInterface\'],' . LF;
     	$tcaPhpCode .= PHPTAB . '\'columns\' => array(' . LF;
 
-		$fieldList = '';
+		$fieldList = array();
 		foreach ($fields as $fieldname => $fieldinfo) {
 			// On met à jour la liste des items
-			$fieldList .= $fieldname.',';
+			$fieldList[] = $fieldname;
 
 			$tcaPhpCode .= PHPTAB . PHPTAB . '\''.$fieldname.'\' => array(' . LF;
 			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'exclude\' => 1,' . LF;
-			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'label\' =>  \'LLL:EXT:'.$this->extensionKey.'/Resources/Private/Language/locallang_db.xml:'.$sqlTableName.'.'.$fieldname.'\',' . LF;
+			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'label\' =>  \'LLL:EXT:' . $this->extensionKey . '/Resources/Private/Language/locallang_db.xlf:' . $sqlTableName . '.' . $fieldname . '\',' . LF;
 			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'config\' => array(' . LF;
 			switch ($fieldinfo['type']) {
 				case 'string':
@@ -298,44 +321,25 @@ class CreateFullModel {
 					$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'default\' => \'0\'' . LF;
 					$sqlFields  .= PHPTAB .$fieldname . " tinyint(4) DEFAULT '0' NOT NULL," . LF;
 					break;
-				default:
-					$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'type\' => \'select\',' . LF;
-					// group of record is of the form : Tx_Extbase_Persistence_ObjectStorage<Model>
-					// The tca must allow multiple items
-					// TODO : if objectstorage is namespaced 
-					if(substr( $fieldinfo['type'], 0, 36 ) === 'Tx_Extbase_Persistence_ObjectStorage' || substr( $fieldinfo['type'], 0, 44 ) === '\\TYPO3\\CMS\\Extbase\\Persistence\\ObjectStorage')
-					{
-						$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'maxitems\' => 10,' . LF;
-						$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'size\' => 10,' . LF;
-						
-						// From now on we need only content ( = Model ) and not container
-						preg_match('~<(.*?)>~', $fieldinfo['type'], $output);
-						print_r($output);
-						echo LF.LF.LF.LF;
-						$fieldinfo['type'] = $output[1]; 
-					}
-					else{
-						$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'maxitems\' => 1,' . LF;
-						$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'size\' => 1,' . LF;
-					}
+				case 'foreignkey':
+					$maxItems = $fieldinfo['is_multiple'] ? '10' : 1;
+					switch($fieldinfo['tca']) {
+						case 'select':							
+							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'type\' => \'select\',' . LF;
+							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'maxitems\' => ' . $maxItems . ',' . LF;
+							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'size\' => ' . $maxItems . ',' . LF;
+							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'foreign_table\' => \'' . $fieldinfo['foreign_table'] . '\',' . LF;
+							break;
 
-					if(substr( $fieldinfo['type'], 0, 1 ) === '\\')
-					{
-						// Exploding namespace to find correct info
-						$path = explode('\\', $fieldinfo['type']);
-						
-						$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'foreign_table\' => \''.'tx_'.strtolower($path[2]).'_domain_model_'.strtolower($path[5]).'\',' . LF;				
-						$sqlFields  .= PHPTAB . $fieldname . ' int(11) DEFAULT \'0\' NOT NULL,' . LF;
+						case 'group':
+							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'type\' => \'group\',' . LF;
+							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'internal_type\' => \'db\',' . LF;
+							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'allowed\' => \'' . $fieldinfo['foreign_table'] . '\',' . LF;
+							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'maxitems\' => ' . $maxItems . ',' . LF;
+							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'size\' => ' . $maxItems . ',' . LF;
+							break;
 					}
-					// If no namespace, we suppose it's a Model from the current extension
-					else
-					{
-						$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'foreign_table\' => \''.'tx_'.str_replace('_', '', $this->extensionKey).'_domain_model_'.strtolower($fieldinfo['type']).'\',' . LF;
-						
-						$sqlFields  .= PHPTAB .$fieldname . ' int(11) DEFAULT \'0\' NOT NULL,' . LF;
-						
-						$this->warning .= 'Type "'. $fieldinfo['type'] .'" assumed to be model of extension "'. $this->extensionKey .'"' . LF;
-					}
+					
 					break;
 			}
 			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . ')' . LF;
@@ -343,7 +347,7 @@ class CreateFullModel {
 		}
 		$tcaPhpCode .= PHPTAB . '),' . LF . LF;
 		$tcaPhpCode .= PHPTAB . '\'types\' => array(' . LF;
-		$tcaPhpCode .= PHPTAB . PHPTAB . '\'0\' => array(\'showitem\' => \''.$fieldList.'\')' . LF;
+		$tcaPhpCode .= PHPTAB . PHPTAB . '\'0\' => array(\'showitem\' => \'' . implode(',', $fieldList) . '\')' . LF;
 		$tcaPhpCode .= PHPTAB . '),' . LF;
 		$tcaPhpCode .= PHPTAB . '\'palettes\' => array(' . LF;
     	$tcaPhpCode .= PHPTAB . PHPTAB . '\'1\' => array(\'showitem\' => \'\')' . LF;
@@ -361,9 +365,9 @@ class CreateFullModel {
 
 		echo 'Tca created.' . LF;
 
-		// Update ext_tables.sql 
-		$sqlFilecontent = file_get_contents($sqlFilepath);
-
+		// Update ext_tables.sql
+		$sqlFilecontent = file_exists($sqlFilepath) ? file_get_contents($sqlFilepath) : '';
+		
 		$sqlUpdatecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/ClassTemplate/Sql.sql');
 		$sqlUpdatecontent = str_replace(
 			array('{SQLTABLENAME}','{SQLFIELDS}'),
@@ -382,8 +386,8 @@ class CreateFullModel {
 
 			$extTableUpdatecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/ClassTemplate/Exttables.php');
 			$extTableUpdatecontent = str_replace(
-				array('{SQLTABLENAME}','{EXTENSION}','{MODEL}','{LISTFIELDS}'),
-				array($sqlTableName,$this->extensionKey,$this->model,$fieldList),
+				array('{SQLTABLENAME}', '{EXTENSION}', '{MODEL}', '{LISTFIELDS}'),
+				array($sqlTableName, $this->extensionKey, Utility::camelCase($this->model), implode(',', $fieldList)),
 				$extTableUpdatecontent
 			);
 
@@ -393,8 +397,8 @@ class CreateFullModel {
 		{
 			$extTableUpdatecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/ClassTemplate/NewExttables.php');
 			$extTableUpdatecontent = str_replace(
-				array('{SQLTABLENAME}','{EXTENSION}','{MODEL}','{LISTFIELDS}'),
-				array($sqlTableName,$this->extensionKey,$this->model,$fieldList),
+				array('{SQLTABLENAME}', '{EXTENSION}', '{MODEL}', '{LISTFIELDS}'),
+				array($sqlTableName, $this->extensionKey, Utility::camelCase($this->model), implode(',', $fieldList)),
 				$extTableUpdatecontent
 			);
 
@@ -402,15 +406,17 @@ class CreateFullModel {
 		}
 
 		echo 'ext_tables.php updated.' . LF;
-
-
 	}	 
 
-	private function createModel($fields){
+	/**
+	 * create model
+	 * @param array $fields fields informations
+	 */ 
+	private function createModel($fields) {
 		$modelDirectoryPath = EXTENSIONS_PATH . $this->extensionKey . '/Classes/Domain/Model/';
 		if(!file_exists($modelDirectoryPath)) { mkdir($modelDirectoryPath, 0770, TRUE); }
 		
-		$modelFilepath = $modelDirectoryPath . $this->model . '.php';
+		$modelFilepath = $modelDirectoryPath . Utility::camelCase($this->model) . '.php';
 
 		$modelPhpcode = '';
 		foreach($fields as $fieldname => $fieldinfo) {
@@ -425,7 +431,17 @@ class CreateFullModel {
 			$modelPhpcode.= PHPTAB . '/**' . LF;
 			$modelPhpcode.= PHPTAB . ' * return ' . lcfirst(Utility::camelCase($fieldname)) . ' value' . LF;
 			$modelPhpcode.= PHPTAB . ' * ' . LF;
-			$modelPhpcode.= PHPTAB . ' * @return ' . $fieldinfo['type'] . ' the value' . LF;
+			if($fieldinfo['type'] == 'foreignkey') {
+				if($fieldinfo['is_multiple']) {
+					$modelPhpcode.= PHPTAB . ' * @return \TYPO3\CMS\Extbase\Persistence\ObjectStorage<' . $fieldinfo['associated_model'] . '> the value' . LF;
+				} else {
+					$modelPhpcode.= PHPTAB . ' * @return ' . $fieldinfo['associated_model'] . ' the value' . LF;
+				}
+				
+			} else {
+				$modelPhpcode.= PHPTAB . ' * @return ' . $fieldinfo['type'] . ' the value' . LF;
+			}
+			
 			$modelPhpcode.= PHPTAB . ' */' . LF;
 			$modelPhpcode.= PHPTAB . 'public function get' . Utility::camelCase($fieldname) . '() {' . LF;
 			$modelPhpcode.= PHPTAB . PHPTAB . 'return $this->' . lcfirst(Utility::camelCase($fieldname)) . ';' . LF;
@@ -434,8 +450,18 @@ class CreateFullModel {
 			$modelPhpcode.= PHPTAB . '/**' . LF;
 			$modelPhpcode.= PHPTAB . ' * set ' . lcfirst(Utility::camelCase($fieldname)) . ' value' . LF;
 			$modelPhpcode.= PHPTAB . ' * ' . LF;
-			$modelPhpcode.= PHPTAB . ' * @params ' . $fieldinfo['type'] . ' $' . lcfirst(Utility::camelCase($fieldname)) . ' the value' . LF;
-			$modelPhpcode.= PHPTAB . ' * @return \\' . $this->vendor . '\\' . Utility::camelCase($this->extensionKey) . '\\Domain\\Model\\' . $this->model . ' the current instance' . LF;
+			if($fieldinfo['type'] == 'foreignkey') {
+				if($fieldinfo['is_multiple']) {
+					$modelPhpcode.= PHPTAB . ' * @params \TYPO3\CMS\Extbase\Persistence\ObjectStorage<' . $fieldinfo['associated_model'] . '> $' . lcfirst(Utility::camelCase($fieldname)) . ' the value' . LF;
+				} else {
+					$modelPhpcode.= PHPTAB . ' * @params ' . $fieldinfo['associated_model'] . ' $' . lcfirst(Utility::camelCase($fieldname)) . ' the value' . LF;
+				}
+				
+			} else {
+				$modelPhpcode.= PHPTAB . ' * @params ' . $fieldinfo['type'] . ' $' . lcfirst(Utility::camelCase($fieldname)) . ' the value' . LF;
+			}
+			
+			$modelPhpcode.= PHPTAB . ' * @return \\' . $this->vendor . '\\' . Utility::camelCase($this->extensionKey) . '\\Domain\\Model\\' . Utility::camelCase($this->model) . ' the current instance' . LF;
 			$modelPhpcode.= PHPTAB . ' */' . LF;
 			$modelPhpcode.= PHPTAB . 'public function set' . Utility::camelCase($fieldname) . '($' . lcfirst(Utility::camelCase($fieldname)) . ') {' . LF;
 			$modelPhpcode.= PHPTAB . PHPTAB . '$this->' . lcfirst(Utility::camelCase($fieldname)) . ' = $' . lcfirst(Utility::camelCase($fieldname)) . ';' . LF;
@@ -446,28 +472,29 @@ class CreateFullModel {
 		$modelFilecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/ClassTemplate/Model.php');
 		$modelFilecontent = str_replace(
 			array('{VENDOR}', '{EXTENSION}', '{CLASSNAME}', '{PHPCODE}'),
-			array($this->vendor, Utility::camelCase($this->extensionKey), $this->model, $modelPhpcode),
+			array($this->vendor, Utility::camelCase($this->extensionKey), Utility::camelCase($this->model), $modelPhpcode),
 			$modelFilecontent
 		);
 		file_put_contents($modelFilepath, $modelFilecontent);
 		echo 'Model create.' . LF;
 	}
 
-	private function createRepository(){
+	/**
+	 * create repository
+	 */ 
+	private function createRepository() {
 		$repositoryDirectoryPath = EXTENSIONS_PATH . $this->extensionKey . '/Classes/Domain/Repository/';
 		if(!file_exists($repositoryDirectoryPath)) { mkdir($repositoryDirectoryPath, 0770, TRUE); }
 
-		$repositoryFilepath = $repositoryDirectoryPath . $this->model . 'Repository.php';
+		$repositoryFilepath = $repositoryDirectoryPath . Utility::camelCase($this->model) . 'Repository.php';
 
 		$repositoryFilecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/ClassTemplate/Repository.php');
 		$repositoryFilecontent = str_replace(
 			array('{VENDOR}', '{EXTENSION}', '{CLASSNAME}'),
-			array($this->vendor, Utility::camelCase($this->extensionKey), $this->model . 'Repository'),
+			array($this->vendor, Utility::camelCase($this->extensionKey), Utility::camelCase($this->model) . 'Repository'),
 			$repositoryFilecontent
 		);
 		file_put_contents($repositoryFilepath, $repositoryFilecontent);
 		echo 'Repository create.' . LF;
-	}	 
-
-	 
+	}
 }
