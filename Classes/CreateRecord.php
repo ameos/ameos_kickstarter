@@ -355,7 +355,7 @@ class CreateRecord {
 		$tcaPhpCode .= ');' . LF;
         
         // Create TCA file
-		$tcaFilecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/ClassTemplate/Tca.php');
+		$tcaFilecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/ConfigurationTemplate/Tca.php');
 		$tcaFilecontent = str_replace(
 			array('{PHPCODE}'),
 			array($tcaPhpCode),
@@ -368,7 +368,7 @@ class CreateRecord {
 		// Update ext_tables.sql
 		$sqlFilecontent = file_exists($sqlFilepath) ? file_get_contents($sqlFilepath) : '';
 		
-		$sqlUpdatecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/ClassTemplate/Sql.sql');
+		$sqlUpdatecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/RootFileTemplate/ext_tables.sql');
 		$sqlUpdatecontent = str_replace(
 			array('{SQLTABLENAME}','{SQLFIELDS}'),
 			array($sqlTableName,$sqlFields),
@@ -384,7 +384,7 @@ class CreateRecord {
 		{
 			$extTableFileContent = file_get_contents($extTablesFilepath);
 
-			$extTableUpdatecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/ClassTemplate/Exttables.php');
+			$extTableUpdatecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/RootFileTemplate/ext_tables_withtca.php');
 			$extTableUpdatecontent = str_replace(
 				array('{SQLTABLENAME}', '{EXTENSION}', '{MODEL}', '{LISTFIELDS}'),
 				array($sqlTableName, $this->extensionKey, Utility::camelCase($this->model), implode(',', $fieldList)),
@@ -395,7 +395,7 @@ class CreateRecord {
 		}
 		else
 		{
-			$extTableUpdatecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/ClassTemplate/NewExttables.php');
+			$extTableUpdatecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/RootFileTemplate/ext_tables_new_withtca.php');
 			$extTableUpdatecontent = str_replace(
 				array('{SQLTABLENAME}', '{EXTENSION}', '{MODEL}', '{LISTFIELDS}'),
 				array($sqlTableName, $this->extensionKey, Utility::camelCase($this->model), implode(',', $fieldList)),
