@@ -57,32 +57,41 @@ class CreateRecord {
 			} else {
 				$fieldtype = '';
 				do  {
-					echo 'Type of the ' . $index . ' (string / int / foreignkey) : ';
+					echo 'Type of field ' . $fieldname . ' (string / int / foreignkey) : ';
 					$fieldtype = fgets($fileResource, 1024);
 					$fieldtype = trim($fieldtype);
 
-				} while(trim($fieldtype) == '');				
+				} while(trim($fieldtype) == '');
+
+				$fieldlabel = '';
+				do  {
+					echo 'label of field ' . $fieldname . ' : ';
+					$fieldlabel = fgets($fileResource, 1024);
+					$fieldlabel = trim($fieldlabel);
+
+				} while(trim($fieldlabel) == '');
+				$fields[$fieldname]['label'] = $fieldlabel;
 			}
 
-			if(!$stop) {
+			if(!$stop) {				
 				$fields[$fieldname]['type'] = $fieldtype;
 				switch ($fieldtype) {
 					case 'string':
 						echo 'Tca type of the "' . $fieldname . '" field (input / text / rte / select / radio) '. LF;
-						echo 'If select or radio, only base will be set. : '. LF;
+						echo 'If select or radio, only base will be set. : ';
 						$tcaType = fgets($fileResource, 1024);
 						$fields[$fieldname]['tca'] = trim($tcaType);
 						break;
 						
 					case 'int':
-						echo 'Tca type of the "' . $fieldname . '" field (input / select / radio / date / datetime / boolean ) '. LF;
-						echo 'If select or radio, only base will be set. : '. LF;
+						echo 'Tca type of the "' . $fieldname . '" field (input / select / radio / date / datetime / boolean) '. LF;
+						echo 'If select or radio, only base will be set. : ';
 						$tcaType = fgets($fileResource, 1024);
 						$fields[$fieldname]['tca'] = trim($tcaType);
 						break;
 						
 					case 'foreignkey':
-						echo 'Tca type of the "' . $fieldname . '" field (select / group ) : ';
+						echo 'Tca type of the "' . $fieldname . '" field (select / group) : ';
 						$tcaType = fgets($fileResource, 1024);
 						$fields[$fieldname]['tca'] = trim($tcaType);
 
@@ -114,7 +123,7 @@ class CreateRecord {
 		$this->createModel($fields);
 		$this->createTca($fields);
 		
-		echo LF .'Scritp finished.' . LF;
+		echo LF .'Record created.' . LF;
 
 		if($this->errors != '') {
 			echo LF .'--------------------' . LF . LF;
@@ -139,16 +148,16 @@ class CreateRecord {
 	private function createTca($fields) {
 		$extensionPath = EXTENSIONS_PATH . $this->extensionKey . '/';
 		
-		
 		$tcaDirectoryPath = $extensionPath . 'Configuration/Tca/';
 		if(!file_exists($tcaDirectoryPath)) { mkdir($tcaDirectoryPath, 0770, TRUE); }
 		
 		$tcaFilepath = $tcaDirectoryPath . Utility::camelCase($this->model) . '.php';
 		$sqlFilepath = $extensionPath . 'ext_tables.sql';
 		$extTablesFilepath = $extensionPath . 'ext_tables.php';
-
+		$locallangFilepath = $extensionPath . 'Resources/Private/Language/locallang_db.xlf';
+		
 		$sqlTableName = 'tx_' . str_replace('_', '', $this->extensionKey) . '_domain_model_' . strtolower($this->model);
-
+		
 		$tcaPhpCode = '';
 		$sqlFields = '';
 
@@ -161,6 +170,7 @@ class CreateRecord {
     	$tcaPhpCode .= PHPTAB . '\'columns\' => array(' . LF;
 
 		$fieldList = array();
+		$labels = '';
 		foreach ($fields as $fieldname => $fieldinfo) {
 			// On met à jour la liste des items
 			$fieldList[] = $fieldname;
@@ -339,12 +349,17 @@ class CreateRecord {
 							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'size\' => ' . $maxItems . ',' . LF;
 							break;
 					}
-					
 					break;
 			}
 			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . ')' . LF;
 			$tcaPhpCode .= PHPTAB . PHPTAB . '),' . LF;
+
+			if($labels !== '') {
+				$labels.= PHPTAB . PHPTAB;
+			}
+			$labels.= PHPTAB . '<trans-unit id="' . $sqlTableName . '.' . $fieldname . '" xml:space="preserve"><source>' . $fieldinfo['label'] . '</source></trans-unit>' . LF;
 		}
+		
 		$tcaPhpCode .= PHPTAB . '),' . LF . LF;
 		$tcaPhpCode .= PHPTAB . '\'types\' => array(' . LF;
 		$tcaPhpCode .= PHPTAB . PHPTAB . '\'0\' => array(\'showitem\' => \'' . implode(',', $fieldList) . '\')' . LF;
@@ -364,6 +379,21 @@ class CreateRecord {
 		file_put_contents($tcaFilepath, $tcaFilecontent);
 
 		echo 'Tca created.' . LF;
+
+		// Update locallang_db file		
+		if(!file_exists($locallangFilepath)) {
+			if(!file_exists($locallangFilepath)) { mkdir(dirname($locallangFilepath), 0770, TRUE); }
+
+			file_put_contents($locallangFilepath, str_replace(
+				array('{EXTENSION}', '{DATE}'),
+				array($this->extensionKey, date('c')),
+				file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/ConfigurationTemplate/locallang.xlf')
+			));
+		}
+
+		$currentLocallangueContent = file_get_contents($locallangFilepath);
+		$newLocallangueContent = preg_replace('/(.*)<\/body>(.*)/', '$1' . $labels . PHPTAB . PHPTAB . '</body>$2', $currentLocallangueContent);
+		file_put_contents($locallangFilepath, $newLocallangueContent);
 
 		// Update ext_tables.sql
 		$sqlFilecontent = file_exists($sqlFilepath) ? file_get_contents($sqlFilepath) : '';
