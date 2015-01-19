@@ -9,10 +9,10 @@ $TCA['{SQLTABLENAME}'] = array(
         'crdate'        => 'crdate',
         'cruser_id'     => 'cruser_id',
         'delete'        => 'deleted',
-        'enablecolumns' => array (
-            'disabled' => 'hidden'
+        'enablecolumns' => array(
+			'disabled'  => 'hidden',{ENABLECOLUMNS}
         ),
-        'default_sortby'    => 'ORDER BY crdate',
+        'default_sortby'    => 'ORDER BY crdate',{SORTING}
         'dynamicConfigFile' => \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::extPath($_EXTKEY).'Configuration/Tca/{MODEL}.php',
         'iconfile'          => \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::extRelPath($_EXTKEY).'ext_icon.gif',
         'searchFields'      => '{LISTFIELDS}',

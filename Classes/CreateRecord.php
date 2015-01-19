@@ -111,12 +111,25 @@ class CreateRecord {
 			}
 
 		} while(!$stop);
+
+		
+		echo 'Use starttime and endtime (yes/no) : ';
+		$useStartEndtime = fgets($fileResource, 1024);
+		$useStartEndtime = (strtolower(trim($useStartEndtime)) == 'yes' ? TRUE : FALSE);
+
+		echo 'Use fe_group access (yes/no) : ';
+		$useFegroup = fgets($fileResource, 1024);
+		$useFegroup = (strtolower(trim($useFegroup)) == 'yes' ? TRUE : FALSE);
+
+		echo 'Use manual sorting (yes/no) : ';
+		$useSorting = fgets($fileResource, 1024);
+		$useSorting = (strtolower(trim($useSorting)) == 'yes' ? TRUE : FALSE);
 		
 		fclose($fileResource);		
 
 		$this->createRepository();
-		$this->createModel($fields);
-		$this->createTca($fields);
+		$this->createModel($fields, $useStartEndtime, $useFegroup, $useSorting);
+		$this->createTca($fields, $useStartEndtime, $useFegroup, $useSorting);
 		
 		echo LF .'Record created.' . LF;
 
@@ -139,8 +152,11 @@ class CreateRecord {
 	/**
 	 * create tca configuration
 	 * @param array $fields fields informations
+	 * @param bool $useStartEndtime use start and endtime field
+	 * @param bool $useFegroup use fe group access
+	 * @param bool $useSorting use manuel sorting
 	 */
-	private function createTca($fields) {
+	protected function createTca($fields, $useStartEndtime = FALSE, $useFegroup = FALSE, $useSorting = FALSE) {
 		$extensionPath = EXTENSIONS_PATH . $this->extensionKey . '/';
 		
 		$tcaDirectoryPath = $extensionPath . 'Configuration/Tca/';
@@ -149,7 +165,7 @@ class CreateRecord {
 		$tcaFilepath = $tcaDirectoryPath . Utility::camelCase($this->model) . '.php';
 		$sqlFilepath = $extensionPath . 'ext_tables.sql';
 		$extTablesFilepath = $extensionPath . 'ext_tables.php';
-		$locallangFilepath = $extensionPath . 'Resources/Private/Language/locallang_db.xlf';
+		$locallangFilepath = $extensionPath . 'Resources/protected/Language/locallang_db.xlf';
 		
 		$sqlTableName = 'tx_' . str_replace('_', '', $this->extensionKey) . '_domain_model_' . strtolower($this->model);
 		
@@ -164,6 +180,21 @@ class CreateRecord {
     	$tcaPhpCode .= PHPTAB . '\'feInterface\' => $TCA[\''.$sqlTableName.'\'][\'feInterface\'],' . LF;
     	$tcaPhpCode .= PHPTAB . '\'columns\' => array(' . LF;
 
+		if($useStartEndtime) {
+			$fields['starttime'] = array('type' => 'int', 'tca' => 'datetime', 'label' => 'Start time');
+			$fields['endtime']   = array('type' => 'int', 'tca' => 'datetime', 'label' => 'End time');
+		}
+
+		if($useFegroup) {
+			$fields['fe_group'] = array(
+				'type'          => 'foreignkey',
+				'tca'           => 'select',
+				'foreign_table' => 'fe_groups',
+				'is_multiple'   => TRUE,
+				'label'         => 'Access frontend group',
+			);
+		}
+		
 		$fieldList = array();
 		$labels = '';
 		foreach ($fields as $fieldname => $fieldinfo) {
@@ -172,7 +203,7 @@ class CreateRecord {
 
 			$tcaPhpCode .= PHPTAB . PHPTAB . '\''.$fieldname.'\' => array(' . LF;
 			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'exclude\' => 1,' . LF;
-			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'label\' =>  \'LLL:EXT:' . $this->extensionKey . '/Resources/Private/Language/locallang_db.xlf:' . $sqlTableName . '.' . $fieldname . '\',' . LF;
+			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'label\' =>  \'LLL:EXT:' . $this->extensionKey . '/Resources/protected/Language/locallang_db.xlf:' . $sqlTableName . '.' . $fieldname . '\',' . LF;
 			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'config\' => array(' . LF;
 			switch ($fieldinfo['type']) {
 				case 'string':
@@ -344,6 +375,11 @@ class CreateRecord {
 							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'size\' => ' . $maxItems . ',' . LF;
 							break;
 					}
+					if($fieldinfo['is_multiple']) {
+						$sqlFields .= PHPTAB . $fieldname . " text," . LF;
+					} else {
+						$sqlFields .= PHPTAB . $fieldname . " int(11) DEFAULT '0' NOT NULL," . LF;
+					}
 					break;
 			}
 			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . ')' . LF;
@@ -354,7 +390,24 @@ class CreateRecord {
 			}
 			$labels.= PHPTAB . '<trans-unit id="' . $sqlTableName . '.' . $fieldname . '" xml:space="preserve"><source>' . $fieldinfo['label'] . '</source></trans-unit>' . LF;
 		}
+
+		$sortingExttable = '';
+		if($useSorting) {
+			$sqlFields.= PHPTAB . 'sorting int(11) DEFAULT \'0\' NOT NULL,' . LF;
+			$sortingExttable = LF . PHPTAB . PHPTAB . '\'sortby\'            => \'sorting\',';
+		}
+
 		
+		$enableColumnsExttable = '';
+		if($useStartEndtime) {
+			$enableColumnsExttable.= LF . PHPTAB . PHPTAB . PHPTAB . '\'starttime\' => \'starttime\',';
+			$enableColumnsExttable.= LF . PHPTAB . PHPTAB . PHPTAB . '\'endtime\'   => \'endtime\',';
+		}
+
+		if($useFegroup) {
+			$enableColumnsExttable.= LF . PHPTAB . PHPTAB . PHPTAB . '\'fe_group\'  => \'fe_group\',';
+		}
+
 		$tcaPhpCode .= PHPTAB . '),' . LF . LF;
 		$tcaPhpCode .= PHPTAB . '\'types\' => array(' . LF;
 		$tcaPhpCode .= PHPTAB . PHPTAB . '\'0\' => array(\'showitem\' => \'' . implode(',', $fieldList) . '\')' . LF;
@@ -395,8 +448,8 @@ class CreateRecord {
 		
 		$sqlUpdatecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/RootFileTemplate/ext_tables.sql');
 		$sqlUpdatecontent = str_replace(
-			array('{SQLTABLENAME}','{SQLFIELDS}'),
-			array($sqlTableName,$sqlFields),
+			array('{SQLTABLENAME}', '{SQLFIELDS}'),
+			array($sqlTableName, $sqlFields),
 			$sqlUpdatecontent
 		);
 
@@ -411,8 +464,8 @@ class CreateRecord {
 
 			$extTableUpdatecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/RootFileTemplate/ext_tables_withtca.php');
 			$extTableUpdatecontent = str_replace(
-				array('{SQLTABLENAME}', '{EXTENSION}', '{MODEL}', '{LISTFIELDS}'),
-				array($sqlTableName, $this->extensionKey, Utility::camelCase($this->model), implode(',', $fieldList)),
+				array('{SQLTABLENAME}', '{EXTENSION}', '{MODEL}', '{LISTFIELDS}', '{ENABLECOLUMNS}', '{SORTING}'),
+				array($sqlTableName, $this->extensionKey, Utility::camelCase($this->model), implode(',', $fieldList), $enableColumnsExttable, $sortingExttable),
 				$extTableUpdatecontent
 			);
 
@@ -422,8 +475,8 @@ class CreateRecord {
 		{
 			$extTableUpdatecontent = file_get_contents(EXTENSIONS_PATH . 'ameos_kickstarter/Resources/Private/RootFileTemplate/ext_tables_new_withtca.php');
 			$extTableUpdatecontent = str_replace(
-				array('{SQLTABLENAME}', '{EXTENSION}', '{MODEL}', '{LISTFIELDS}'),
-				array($sqlTableName, $this->extensionKey, Utility::camelCase($this->model), implode(',', $fieldList)),
+				array('{SQLTABLENAME}', '{EXTENSION}', '{MODEL}', '{LISTFIELDS}', '{ENABLECOLUMNS}', '{SORTING}'),
+				array($sqlTableName, $this->extensionKey, Utility::camelCase($this->model), implode(',', $fieldList), $enableColumnsExttable, $sortingExttable),
 				$extTableUpdatecontent
 			);
 
@@ -436,18 +489,45 @@ class CreateRecord {
 	/**
 	 * create model
 	 * @param array $fields fields informations
+	 * @param bool $useStartEndtime use start and endtime field
+	 * @param bool $useFegroup use fe group access
+	 * @param bool $useSorting use manuel sorting
 	 */ 
-	private function createModel($fields) {
+	protected function createModel($fields, $useStartEndtime = FALSE, $useFegroup = FALSE, $useSorting = FALSE) {
 		$modelDirectoryPath = EXTENSIONS_PATH . $this->extensionKey . '/Classes/Domain/Model/';
 		if(!file_exists($modelDirectoryPath)) { mkdir($modelDirectoryPath, 0770, TRUE); }
 		
 		$modelFilepath = $modelDirectoryPath . Utility::camelCase($this->model) . '.php';
 
+		if($useStartEndtime) {
+			$fields['starttime'] = array('type' => 'int');
+			$fields['endtime']   = array('type' => 'int');
+		}
+
+		if($useFegroup) {
+			$fields['fe_group']  = array(
+				'type'             => 'foreignkey',
+				'is_multiple'      => TRUE,
+				'associated_model' => '\\TYPO3\\CMS\\Extbase\\Domain\\Model\\FrontendUserGroup'
+			);
+		}
+
+		if($useSorting) {
+			$fields['sorting']   = array('type' => 'int');
+		}
+		
 		$modelPhpcode = '';
-		foreach($fields as $fieldname => $fieldinfo) {
-			
+		foreach($fields as $fieldname => $fieldinfo) {			
 			$modelPhpcode.= PHPTAB . '/**' . LF;
-			$modelPhpcode.= PHPTAB . ' * @var ' . $fieldinfo['type'] . LF;
+			if($fieldinfo['type'] == 'foreignkey') {
+				if($fieldinfo['is_multiple']) {
+					$modelPhpcode.= PHPTAB . ' * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage<' . $fieldinfo['associated_model'] . '>' . LF;
+				} else {
+					$modelPhpcode.= PHPTAB . ' * @var ' . $fieldinfo['associated_model'] . LF;
+				}
+			} else {
+				$modelPhpcode.= PHPTAB . ' * @var ' . $fieldinfo['type'] . LF;
+			}
 			$modelPhpcode.= PHPTAB . ' */' . LF;
 			$modelPhpcode.= PHPTAB . 'protected $' . lcfirst(Utility::camelCase($fieldname)) . ';' . LF . LF;			
 		}
@@ -507,7 +587,7 @@ class CreateRecord {
 	/**
 	 * create repository
 	 */ 
-	private function createRepository() {
+	protected function createRepository() {
 		$repositoryDirectoryPath = EXTENSIONS_PATH . $this->extensionKey . '/Classes/Domain/Repository/';
 		if(!file_exists($repositoryDirectoryPath)) { mkdir($repositoryDirectoryPath, 0770, TRUE); }
 
