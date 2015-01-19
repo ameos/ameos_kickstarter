@@ -52,7 +52,7 @@ class CreateRecord {
 			} else {
 				$fieldtype = '';
 				do  {
-					echo 'Type of field ' . $fieldname . ' (string / int / foreignkey) : ';
+					echo 'Type of field ' . $fieldname . ' (string / int / boolean / float / foreignkey) : ';
 					$fieldtype = fgets($fileResource, 1024);
 					$fieldtype = trim($fieldtype);
 
@@ -79,7 +79,7 @@ class CreateRecord {
 						break;
 						
 					case 'int':
-						echo 'Tca type of the "' . $fieldname . '" field (input / select / radio / date / datetime / boolean) '. LF;
+						echo 'Tca type of the "' . $fieldname . '" field (input / select / radio / date / datetime / check) '. LF;
 						echo 'If select or radio, only base will be set. : ';
 						$tcaType = fgets($fileResource, 1024);
 						$fields[$fieldname]['tca'] = trim($tcaType);
@@ -180,9 +180,11 @@ class CreateRecord {
     	$tcaPhpCode .= PHPTAB . '\'feInterface\' => $TCA[\''.$sqlTableName.'\'][\'feInterface\'],' . LF;
     	$tcaPhpCode .= PHPTAB . '\'columns\' => array(' . LF;
 
+		$fields['hidden'] = array('type' => 'int', 'tca' => 'check', 'label' => 'LLL:EXT:lang/locallang_general.php:LGL.hidden');
+		
 		if($useStartEndtime) {
-			$fields['starttime'] = array('type' => 'int', 'tca' => 'datetime', 'label' => 'Start time');
-			$fields['endtime']   = array('type' => 'int', 'tca' => 'datetime', 'label' => 'End time');
+			$fields['starttime'] = array('type' => 'int', 'tca' => 'datetime', 'label' => 'LLL:EXT:lang/locallang_general.php:LGL.starttime');
+			$fields['endtime']   = array('type' => 'int', 'tca' => 'datetime', 'label' => 'LLL:EXT:lang/locallang_general.php:LGL.endtime');
 		}
 
 		if($useFegroup) {
@@ -191,7 +193,7 @@ class CreateRecord {
 				'tca'           => 'select',
 				'foreign_table' => 'fe_groups',
 				'is_multiple'   => TRUE,
-				'label'         => 'Access frontend group',
+				'label'         => 'LLL:EXT:lang/locallang_general.php:LGL.fe_group',
 			);
 		}
 		
@@ -203,7 +205,11 @@ class CreateRecord {
 
 			$tcaPhpCode .= PHPTAB . PHPTAB . '\''.$fieldname.'\' => array(' . LF;
 			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'exclude\' => 1,' . LF;
-			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'label\' =>  \'LLL:EXT:' . $this->extensionKey . '/Resources/protected/Language/locallang_db.xlf:' . $sqlTableName . '.' . $fieldname . '\',' . LF;
+			if(strpos($fieldinfo['label'], 'LLL:') !== FALSE) {
+				$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'label\' =>  \'' . $fieldinfo['label'] . '\',' . LF;
+			} else {
+				$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'label\' =>  \'LLL:EXT:' . $this->extensionKey . '/Resources/protected/Language/locallang_db.xlf:' . $sqlTableName . '.' . $fieldname . '\',' . LF;
+			}			
 			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'config\' => array(' . LF;
 			switch ($fieldinfo['type']) {
 				case 'string':
@@ -332,6 +338,7 @@ class CreateRecord {
 							$sqlFields  .= PHPTAB . $fieldname . ' int(11) DEFAULT \'0\' NOT NULL,' . LF;
 							break;
 						case 'boolean':
+						case 'check':
 							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'type\' => \'check\',' . LF;
 							$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'default\' => \'0\'' . LF;
 							$sqlFields  .= PHPTAB . $fieldname . ' tinyint(4) DEFAULT \'0\' NOT NULL,' . LF;
@@ -353,6 +360,7 @@ class CreateRecord {
 					$sqlFields  .= PHPTAB .$fieldname . ' varchar(255) DEFAULT \'\' NOT NULL,' . LF;
 					break;
 				case 'boolean':
+				case 'check':
 					$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'type\' => \'check\',' . LF;
 					$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . PHPTAB . '\'default\' => \'0\'' . LF;
 					$sqlFields  .= PHPTAB .$fieldname . " tinyint(4) DEFAULT '0' NOT NULL," . LF;
@@ -385,10 +393,12 @@ class CreateRecord {
 			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . ')' . LF;
 			$tcaPhpCode .= PHPTAB . PHPTAB . '),' . LF;
 
-			if($labels !== '') {
-				$labels.= PHPTAB . PHPTAB;
+			if(strpos($fieldinfo['label'], 'LLL:') === FALSE) {
+				if($labels !== '') {
+					$labels.= PHPTAB . PHPTAB;
+				}
+				$labels.= PHPTAB . '<trans-unit id="' . $sqlTableName . '.' . $fieldname . '" xml:space="preserve"><source>' . $fieldinfo['label'] . '</source></trans-unit>' . LF;
 			}
-			$labels.= PHPTAB . '<trans-unit id="' . $sqlTableName . '.' . $fieldname . '" xml:space="preserve"><source>' . $fieldinfo['label'] . '</source></trans-unit>' . LF;
 		}
 
 		$sortingExttable = '';
@@ -499,6 +509,8 @@ class CreateRecord {
 		
 		$modelFilepath = $modelDirectoryPath . Utility::camelCase($this->model) . '.php';
 
+		$fields['hidden'] = array('type' => 'int');
+		
 		if($useStartEndtime) {
 			$fields['starttime'] = array('type' => 'int');
 			$fields['endtime']   = array('type' => 'int');
