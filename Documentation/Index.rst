@@ -1,13 +1,3 @@
-.. ==================================================
-.. FOR YOUR INFORMATION
-.. --------------------------------------------------
-.. -*- coding: utf-8 -*- with BOM.
-
-.. include:: Includes.txt
-
-
-.. _start:
-
 =============================================================
 Ameos Kickstarter
 =============================================================
@@ -33,7 +23,7 @@ Ameos Kickstarter
 		2015
 
 	:Author:
-		Stéphane Fillion
+		Ameos team
 
 	:Email:
 		typo3dev@ameos.com

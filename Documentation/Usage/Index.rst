@@ -1,21 +1,8 @@
-.. ==================================================
-.. FOR YOUR INFORMATION
-.. --------------------------------------------------
-.. -*- coding: utf-8 -*- with BOM.
-
-.. include:: ../Includes.txt
-
-
-.. _usage:
-
 Usage
-============
-
-
-.. _usage:
+=====
 
 How use it
-----------------
+----------
 
 Run ./kickstart script : kickstart \<action\> \<param\>
 
@@ -28,12 +15,11 @@ Where possible action include:
   * -help Display help
 
 
-.. _screenshots:
 
 Screenshots
 -----------
 
-Exemple
+Example
 
 .. figure:: ../Images/Usage.png
    :width: 805px
