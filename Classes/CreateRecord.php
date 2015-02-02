@@ -190,7 +190,7 @@ class CreateRecord {
 		$tcaFilepath = $tcaDirectoryPath . Utility::camelCase($this->model) . '.php';
 		$sqlFilepath = $extensionPath . 'ext_tables.sql';
 		$extTablesFilepath = $extensionPath . 'ext_tables.php';
-		$locallangFilepath = $extensionPath . 'Resources/protected/Language/locallang_db.xlf';
+		$locallangFilepath = $extensionPath . 'Resources/Private/Language/locallang_db.xlf';
 		
 		$sqlTableName = 'tx_' . str_replace('_', '', $this->extensionKey) . '_domain_model_' . strtolower($this->model);
 		
@@ -233,7 +233,7 @@ class CreateRecord {
 			if(strpos($fieldinfo['label'], 'LLL:') !== FALSE) {
 				$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'label\' =>  \'' . $fieldinfo['label'] . '\',' . LF;
 			} else {
-				$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'label\' =>  \'LLL:EXT:' . $this->extensionKey . '/Resources/protected/Language/locallang_db.xlf:' . $sqlTableName . '.' . $fieldname . '\',' . LF;
+				$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'label\' =>  \'LLL:EXT:' . $this->extensionKey . '/Resources/Private/Language/locallang_db.xlf:' . $sqlTableName . '.' . $fieldname . '\',' . LF;
 			}			
 			$tcaPhpCode .= PHPTAB . PHPTAB . PHPTAB . '\'config\' => array(' . LF;
 			switch ($fieldinfo['type']) {
@@ -594,13 +594,13 @@ class CreateRecord {
 			$modelPhpcode.= PHPTAB . ' * ' . LF;
 			if($fieldinfo['type'] == 'foreignkey') {
 				if($fieldinfo['is_multiple']) {
-					$modelPhpcode.= PHPTAB . ' * @params \TYPO3\CMS\Extbase\Persistence\ObjectStorage<' . $fieldinfo['associated_model'] . '> $' . lcfirst(Utility::camelCase($fieldname)) . ' the value' . LF;
+					$modelPhpcode.= PHPTAB . ' * @param \TYPO3\CMS\Extbase\Persistence\ObjectStorage<' . $fieldinfo['associated_model'] . '> $' . lcfirst(Utility::camelCase($fieldname)) . ' the value' . LF;
 				} else {
-					$modelPhpcode.= PHPTAB . ' * @params ' . $fieldinfo['associated_model'] . ' $' . lcfirst(Utility::camelCase($fieldname)) . ' the value' . LF;
+					$modelPhpcode.= PHPTAB . ' * @param ' . $fieldinfo['associated_model'] . ' $' . lcfirst(Utility::camelCase($fieldname)) . ' the value' . LF;
 				}
 				
 			} else {
-				$modelPhpcode.= PHPTAB . ' * @params ' . $fieldinfo['type'] . ' $' . lcfirst(Utility::camelCase($fieldname)) . ' the value' . LF;
+				$modelPhpcode.= PHPTAB . ' * @param ' . $fieldinfo['type'] . ' $' . lcfirst(Utility::camelCase($fieldname)) . ' the value' . LF;
 			}
 			
 			$modelPhpcode.= PHPTAB . ' * @return \\' . $this->vendor . '\\' . Utility::camelCase($this->extensionKey) . '\\Domain\\Model\\' . Utility::camelCase($this->model) . ' the current instance' . LF;
